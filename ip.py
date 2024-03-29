@@ -49,6 +49,18 @@ def find_tenants_with_same_ips(tenants_data):
 
     return sorted_ips
 
+def save_local_files(matching_offsets, available_ips_data):
+    # Uncomment for testing and comment for AWX
+    with open("matching_ips.txt", 'w') as file:
+        file.write(matching_offsets)
+    
+    with open("available_ips.txt", 'w') as file:
+        json.dump(available_ips_data, file, indent=4)
+
+    # Comment for testing and uncomment for AWX
+    """
+    pass
+    """
 
 if __name__ == "__main__":
     try:
@@ -62,6 +74,8 @@ if __name__ == "__main__":
 
         matching_ips = find_tenants_with_same_ips(result)
         matching_offsets = "\n".join(matching_ips)
+
+        save_local_files(matching_offsets, result)
         
         print(matching_offsets)
         
