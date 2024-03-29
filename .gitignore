@@ -160,4 +160,5 @@ cython_debug/
 #.idea/
 
 # Test files
-.txt
+*.txt
+dummy_ips.json

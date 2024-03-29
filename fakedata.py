@@ -23,7 +23,7 @@ def generate_data():
 data = generate_data()
 
 # Writing data to a file
-with open('output.json', 'w') as file:
+with open('dummy_ips.json', 'w') as file:
     json.dump(data, file, indent=4)
 
-print("Data has been written to 'output.json'.")
+print("Data has been written to 'dummy_ips.json'.")
