@@ -1,70 +1,70 @@
 import ipaddress
+import sys
+import json
 
+def get_host_address(i, subnet_mask_cidr=19):
+    return ipaddress.IPv4Network(f"{i}/{subnet_mask_cidr}", strict=False)
 
-def get_host_address(i):
-    subnet_mask_cidr = 19
-    # Calculate the host address
-    network = ipaddress.IPv4Network(f"{i}/{subnet_mask_cidr}", strict=False)
-    x = ipaddress.IPv4Network(network)
-    return (x)
+def get_offset(x, y):
+    return ipaddress.ip_address(int(ipaddress.IPv4Address(x)) - int(ipaddress.IPv4Address(str(y)[:-3])))
 
+def process_tenants(tenants_data):
+    output = {}
 
-def get_offset (x,y):
-    i = int(x)
-    y = str(y)
-    y = y[:-3]
-    y = int(ipaddress.IPv4Address(y))
-    z = x - y
-    z = ipaddress.ip_address(z)
-    print (z)
-    return(z)
+    for tenant, ips in tenants_data.items():
+        tenant_ips = {}
+        used_ips = set()
 
-
-def main():
-    # Prompt for the name
-    tenant = input("Enter Tenant ID (e.g., 1234):  ")
-    tenant_ips = {}
-
-
-    # Initialize a set to store used IP addresses
-    used_ips = set()
-
-    # Prompt the user to enter IP addresses until 'End' is entered
-    print("Enter IP addresses. Enter 'End' to finish.")
-    while True:
-        ip = input("IP Address: ")
-        if ip.lower() == 'end':
-            break
-        try:
-            base_network = get_host_address(ip)
-            ip_address = ipaddress.IPv4Address(ip)
-            if ip_address in base_network:
-                used_ips.add(str(ip_address))
-            else:
+        for ip in ips:
+            try:
                 base_network = get_host_address(ip)
                 ip_address = ipaddress.IPv4Address(ip)
                 if ip_address in base_network:
-                    used_ips.add(ip_address)
+                    used_ips.add(str(ip_address))  
                 else:
                     break
-        except ipaddress.AddressValueError:
-            print("Invalid IP address format.")
-        if tenant not in tenant_ips:
-            tenant_ips[tenant] = set()
-        tenant_ips[tenant].add(ip_address)
-        get_offset(ip_address,base_network)
-        
+            except ipaddress.AddressValueError:
+                continue
 
-    # Find available IP addresses
-    available_ips = set(base_network.hosts()) - used_ips
+        available_ips = [str(addr) for addr in base_network.hosts() if str(addr) not in used_ips]
+        offset_ips = [str(get_offset(each, base_network)) for each in available_ips]
 
-    # Save available IP addresses to a file
-    filename = "et" + tenant + ".txt"
-    with open(filename, 'w') as file:
-        file.write("Available IP addresses for ET" + str(tenant) + "\n")
-        file.write(str(available_ips))
+        output[tenant] = {"available_ips": offset_ips}
 
-    print(f"Available IP addresses saved to '{filename}'.")
+    return output
+
+def find_tenants_with_same_ips(tenants_data):
+    ip_count = {}
+    for data in tenants_data.values():
+        for ip in data["available_ips"]:
+            if ip in ip_count:
+                ip_count[ip] += 1
+            else:
+                ip_count[ip] = 1
+
+    all_tenants_count = len(tenants_data)
+    matching_ips = [ip for ip, count in ip_count.items() if count == all_tenants_count]
+
+    sorted_ips = sorted(matching_ips, key=lambda ip: [int(octet) for octet in ip.split('.')])
+
+    return sorted_ips
+
 
 if __name__ == "__main__":
-    main()
+    try:
+        if len(sys.argv) != 2:
+            raise ValueError("Incorrect number of arguments provided.")
+        
+        with open(sys.argv[1], 'r') as file:
+            tenants_data = json.load(file)
+        
+        result = process_tenants(tenants_data)
+
+        matching_ips = find_tenants_with_same_ips(result)
+        matching_offsets = "\n".join(matching_ips)
+        
+        print(matching_offsets)
+        
+    except (ValueError, FileNotFoundError, json.JSONDecodeError) as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
